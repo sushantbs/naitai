@@ -1,0 +1,32 @@
+{
+  "name": "naitai-backend",
+  "version": "1.0.0",
+  "description": "Backend for Naitai - Node.js + Express + ESM + Supabase",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "lint": "eslint . --fix",
+    "format": "prettier --write \"**/*.js\""
+  },
+  "keywords": [
+    "node",
+    "express",
+    "supabase",
+    "api"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "@supabase/supabase-js": "^2.45.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.57.0",
+    "prettier": "^3.3.3"
+  }
+}

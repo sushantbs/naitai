@@ -1,0 +1,24 @@
+# CODEOWNERS - Defines who automatically gets requested for review
+# Learn more: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global ownership - these users are requested as reviewers for all changes
+* @your-github-username
+
+# Frontend specific files
+/frontend/ @your-github-username
+*.tsx @your-github-username
+*.ts @your-github-username
+
+# Backend specific files  
+/backend/ @your-github-username
+*.js @your-github-username
+
+# CI/CD and configuration files
+/.github/ @your-github-username
+*.yml @your-github-username
+*.yaml @your-github-username
+*.json @your-github-username
+
+# Documentation
+*.md @your-github-username
+/docs/ @your-github-username 
