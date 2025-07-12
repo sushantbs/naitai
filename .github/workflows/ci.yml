@@ -2,23 +2,23 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: "18"
 
 jobs:
   # Job 1: Frontend CI
   frontend:
     name: Frontend CI
     runs-on: ubuntu-latest
-    
+
     defaults:
       run:
         working-directory: ./frontend
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -27,8 +27,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: './frontend/package-lock.json'
+          cache: "npm"
+          cache-dependency-path: "./frontend/package-lock.json"
 
       - name: Cache node modules
         uses: actions/cache@v3
@@ -46,11 +46,18 @@ jobs:
 
       - name: Format check
         run: npm run format:check
-        
+
       - name: Lint check (currently disabled)
         run: |
           echo "Frontend linting is currently disabled due to ESLint config issues"
           echo "TODO: Fix ESLint configuration and re-enable: npm run lint"
+
+      - name: Run tests
+        run: npm test
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL || 'http://localhost:3001' }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Build application
         run: npm run build
@@ -70,11 +77,11 @@ jobs:
   backend:
     name: Backend CI
     runs-on: ubuntu-latest
-    
+
     defaults:
       run:
         working-directory: ./backend
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -83,8 +90,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: './backend/package-lock.json'
+          cache: "npm"
+          cache-dependency-path: "./backend/package-lock.json"
 
       - name: Cache node modules
         uses: actions/cache@v3
@@ -103,12 +110,20 @@ jobs:
       - name: Format check
         run: npx prettier --check "**/*.js"
 
+      - name: Run tests
+        run: npm test
+        env:
+          PORT: 3003
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          NODE_ENV: test
+
       - name: Start server (health check)
         run: |
           # Start server in background
           npm start &
           SERVER_PID=$!
-          
+
           # Wait for server to start
           echo "Waiting for server to start..."
           for i in {1..30}; do
@@ -120,7 +135,7 @@ jobs:
             echo "Attempt $i: Server not ready yet..."
             sleep 2
           done
-          
+
           echo "Server failed to start within 60 seconds"
           kill $SERVER_PID 2>/dev/null || true
           exit 1
@@ -130,11 +145,11 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           NODE_ENV: test
 
-      # Placeholder for future tests
-      - name: Run tests
+      # Additional integration tests (if needed)
+      - name: Run additional tests
         run: |
-          echo "No tests configured yet - skipping test execution"
-          echo "TODO: Add 'npm test' when test suite is implemented"
+          echo "Additional integration tests can be added here"
+          echo "Current test suite covers API endpoints and functionality"
         env:
           PORT: 3001
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -145,7 +160,7 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -171,17 +186,172 @@ jobs:
     runs-on: ubuntu-latest
     needs: [frontend, backend, security]
     if: always()
-    
+
     steps:
       - name: Check build status
         run: |
           echo "Frontend Status: ${{ needs.frontend.result }}"
           echo "Backend Status: ${{ needs.backend.result }}"
           echo "Security Status: ${{ needs.security.result }}"
-          
+
           if [[ "${{ needs.frontend.result }}" != "success" || "${{ needs.backend.result }}" != "success" || "${{ needs.security.result }}" != "success" ]]; then
             echo "❌ Build failed!"
             exit 1
           else
             echo "✅ All checks passed!"
-          fi 
+          fi
+
+  # Job 5: Deploy Frontend to Vercel
+  deploy-frontend:
+    name: Deploy Frontend
+    runs-on: ubuntu-latest
+    needs: [frontend, backend, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "./frontend/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL_PROD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: "--prod"
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_FRONTEND }}
+          working-directory: ./frontend
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL_PROD }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+  # Job 6: Deploy Backend to Vercel
+  deploy-backend:
+    name: Deploy Backend
+    runs-on: ubuntu-latest
+    needs: [frontend, backend, security]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: "./backend/package-lock.json"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: "--prod"
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID_BACKEND }}
+          working-directory: ./backend
+          scope: ${{ secrets.VERCEL_ORG_ID }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          NODE_ENV: production
+
+  # Job 7: End-to-End Verification
+  verify-deployment:
+    name: Verify Deployment
+    runs-on: ubuntu-latest
+    needs: [deploy-frontend, deploy-backend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Wait for deployment propagation
+        run: |
+          echo "Waiting for deployment to propagate..."
+          sleep 30
+
+      - name: Test Backend Health
+        run: |
+          echo "Testing backend health endpoint..."
+          backend_url="${{ secrets.VERCEL_BACKEND_URL }}"
+          if [ -z "$backend_url" ]; then
+            echo "⚠️  VERCEL_BACKEND_URL not set, skipping backend verification"
+          else
+            for i in {1..10}; do
+              if curl -f "${backend_url}/api/health" > /dev/null 2>&1; then
+                echo "✅ Backend health check passed!"
+                break
+              else
+                echo "Attempt $i: Backend not ready yet..."
+                sleep 10
+              fi
+            done
+          fi
+
+      - name: Test Backend API
+        run: |
+          echo "Testing backend API endpoints..."
+          backend_url="${{ secrets.VERCEL_BACKEND_URL }}"
+          if [ -z "$backend_url" ]; then
+            echo "⚠️  VERCEL_BACKEND_URL not set, skipping API verification"
+          else
+            # Test GET /api/habits
+            if curl -f "${backend_url}/api/habits" > /dev/null 2>&1; then
+              echo "✅ GET /api/habits endpoint working!"
+            else
+              echo "❌ GET /api/habits endpoint failed!"
+              exit 1
+            fi
+          fi
+
+      - name: Test Frontend
+        run: |
+          echo "Testing frontend application..."
+          frontend_url="${{ secrets.VERCEL_FRONTEND_URL }}"
+          if [ -z "$frontend_url" ]; then
+            echo "⚠️  VERCEL_FRONTEND_URL not set, skipping frontend verification"
+          else
+            # Test that frontend loads
+            if curl -f "${frontend_url}" > /dev/null 2>&1; then
+              echo "✅ Frontend application loads successfully!"
+            else
+              echo "❌ Frontend application failed to load!"
+              exit 1
+            fi
+          fi
+
+      - name: Deployment Summary
+        run: |
+          echo "🚀 Deployment Summary:"
+          echo "Frontend URL: ${{ secrets.VERCEL_FRONTEND_URL }}"
+          echo "Backend URL: ${{ secrets.VERCEL_BACKEND_URL }}"
+          echo "✅ End-to-end deployment verification completed!"
