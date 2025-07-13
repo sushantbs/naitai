@@ -28,7 +28,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
-          cache-dependency-path: "./frontend/package-lock.json"
 
       - name: Cache node modules
         uses: actions/cache@v3
@@ -67,7 +66,7 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: frontend-build
           path: ./frontend/dist
@@ -91,7 +90,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
-          cache-dependency-path: "./backend/package-lock.json"
 
       - name: Cache node modules
         uses: actions/cache@v3
@@ -104,11 +102,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Type check
+        run: npm run type-check
+
       - name: Lint check
         run: npm run lint
 
       - name: Format check
-        run: npx prettier --check "**/*.js"
+        run: npx prettier --check "**/*.{js,ts}"
+
+      - name: Build TypeScript
+        run: npm run build
 
       - name: Run tests
         run: npm test
@@ -271,6 +275,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25

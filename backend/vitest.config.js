@@ -10,11 +10,15 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'coverage/',
+        'dist/',
         '**/*.config.js',
         '**/*.config.ts',
       ],
     },
     testTimeout: 10000,
-    setupFiles: ['./test/setup.js'],
+    setupFiles: ['./test/setup.ts'],
+  },
+  esbuild: {
+    target: 'node18',
   },
 })
