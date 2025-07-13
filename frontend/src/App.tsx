@@ -15,8 +15,8 @@ function App() {
           transition={{ duration: 0.5 }}
         >
           <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/habits" element={<HabitsPage />} />
+            <Route path="/" element={<HabitsPage />} />
+            <Route path="/welcome" element={<HomePage />} />
           </Routes>
         </motion.div>
         <Toaster />
