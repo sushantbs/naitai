@@ -1,153 +1,47 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import request from 'supertest'
-import express from 'express'
-import cors from 'cors'
-import dotenv from 'dotenv'
 
-// Load environment variables
-dotenv.config()
+// Mock dotenv
+vi.mock('dotenv', () => ({
+  default: {
+    config: vi.fn(),
+  },
+  config: vi.fn(),
+}))
 
-// Import the same app setup as index.js but without starting the server
-const app = express()
-const PORT = process.env.PORT || 3003
-
-// Middleware
-app.use(cors())
-app.use(express.json())
-
-// Mock Supabase client for testing
-const mockSupabase = {
-  from: () => ({
-    select: () => ({
-      order: () => ({
-        data: [
-          {
-            id: 'test-1',
-            name: 'Test Habit 1',
-            description: 'Test description 1',
-            completed: false,
-            created_at: '2023-01-01T00:00:00.000Z',
-            updated_at: '2023-01-01T00:00:00.000Z',
-          },
-          {
-            id: 'test-2',
-            name: 'Test Habit 2',
-            description: 'Test description 2',
-            completed: true,
-            created_at: '2023-01-02T00:00:00.000Z',
-            updated_at: '2023-01-02T00:00:00.000Z',
-          },
-        ],
-        error: null,
-      }),
-    }),
-    insert: data => ({
-      select: () => ({
-        single: () => ({
-          data: {
-            id: 'test-new',
-            name: data[0].name,
-            description: data[0].description,
-            completed: data[0].completed,
-            created_at: '2023-01-03T00:00:00.000Z',
-            updated_at: '2023-01-03T00:00:00.000Z',
-          },
-          error: null,
-        }),
-      }),
-    }),
-  }),
+// Create a simple mock that returns consistent structure
+const mockSupabaseResponse = {
+  data: null as any,
+  error: null as any,
 }
 
-// Routes for testing
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    service: 'naitai-backend',
-  })
-})
+// Mock Supabase client with a simple structure
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => ({
+    from: vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
+      })),
+      insert: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
+        })),
+      })),
+    })),
+  })),
+}))
 
-app.get('/api/habits', async (req, res) => {
-  try {
-    // Use mock data for testing
-    const { data, error } = mockSupabase
-      .from('habits')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (error) {
-      return res.status(500).json({
-        error: 'Failed to fetch habits',
-        details: error.message,
-      })
-    }
-
-    res.json({ data })
-  } catch (error) {
-    res.status(500).json({
-      error: 'Internal server error',
-      details: error.message,
-    })
-  }
-})
-
-app.post('/api/habits', async (req, res) => {
-  try {
-    const { name, description } = req.body
-
-    if (!name) {
-      return res.status(400).json({
-        error: 'Habit name is required',
-      })
-    }
-
-    // Use mock data for testing
-    const { data, error } = mockSupabase
-      .from('habits')
-      .insert([
-        {
-          name,
-          description: description || '',
-          completed: false,
-        },
-      ])
-      .select()
-      .single()
-
-    if (error) {
-      return res.status(500).json({
-        error: 'Failed to create habit',
-        details: error.message,
-      })
-    }
-
-    res.status(201).json({ data })
-  } catch (error) {
-    res.status(500).json({
-      error: 'Internal server error',
-      details: error.message,
-    })
-  }
-})
-
-// 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.originalUrl,
-  })
-})
-
-// Error handling middleware
-app.use((error, req, res, _next) => {
-  res.status(500).json({
-    error: 'Something went wrong!',
-    details: error.message,
-  })
-})
+// Import app after all mocks are set up
+import app from '../src/index'
 
 describe('API Endpoints', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Reset the mock response
+    mockSupabaseResponse.data = null
+    mockSupabaseResponse.error = null
+  })
+
   describe('GET /api/health', () => {
     it('should return 200 OK with health status', async () => {
       const response = await request(app).get('/api/health')
@@ -169,19 +63,47 @@ describe('API Endpoints', () => {
   })
 
   describe('GET /api/habits', () => {
-    it('should return 200 OK with an array of habits', async () => {
+    it('should return 200 OK with habits data', async () => {
+      const mockHabits = [
+        {
+          id: '1',
+          name: 'Test Habit',
+          description: 'Test Description',
+          completed: false,
+          created_at: '2024-01-01T00:00:00.000Z',
+          updated_at: '2024-01-01T00:00:00.000Z',
+        },
+      ]
+
+      // Set up the mock response
+      mockSupabaseResponse.data = mockHabits
+      mockSupabaseResponse.error = null
+
       const response = await request(app).get('/api/habits')
 
       expect(response.status).toBe(200)
       expect(response.body).toHaveProperty('data')
       expect(Array.isArray(response.body.data)).toBe(true)
+      expect(response.body.data).toHaveLength(1)
     })
 
     it('should return habits with correct structure', async () => {
+      const mockHabit = {
+        id: '1',
+        name: 'Daily Exercise',
+        description: 'Go for a 30-minute walk',
+        completed: false,
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      }
+
+      mockSupabaseResponse.data = [mockHabit]
+      mockSupabaseResponse.error = null
+
       const response = await request(app).get('/api/habits')
 
       expect(response.status).toBe(200)
-      expect(response.body.data).toHaveLength(2)
+      expect(response.body.data).toHaveLength(1)
 
       const habit = response.body.data[0]
       expect(habit).toHaveProperty('id')
@@ -192,7 +114,24 @@ describe('API Endpoints', () => {
       expect(habit).toHaveProperty('updated_at')
     })
 
+    it('should handle Supabase errors', async () => {
+      mockSupabaseResponse.data = null
+      mockSupabaseResponse.error = { message: 'Database connection failed' }
+
+      const response = await request(app).get('/api/habits')
+
+      expect(response.status).toBe(500)
+      expect(response.body).toHaveProperty('error', 'Failed to fetch habits')
+      expect(response.body).toHaveProperty(
+        'details',
+        'Database connection failed'
+      )
+    })
+
     it('should return JSON content type', async () => {
+      mockSupabaseResponse.data = []
+      mockSupabaseResponse.error = null
+
       const response = await request(app).get('/api/habits')
 
       expect(response.headers['content-type']).toMatch(/application\/json/)
@@ -205,6 +144,18 @@ describe('API Endpoints', () => {
         name: 'Test Habit',
         description: 'This is a test habit',
       }
+
+      const mockCreatedHabit = {
+        id: '2',
+        name: newHabit.name,
+        description: newHabit.description,
+        completed: false,
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      }
+
+      mockSupabaseResponse.data = mockCreatedHabit
+      mockSupabaseResponse.error = null
 
       const response = await request(app)
         .post('/api/habits')
@@ -241,6 +192,18 @@ describe('API Endpoints', () => {
         name: 'Habit Without Description',
       }
 
+      const mockCreatedHabit = {
+        id: '3',
+        name: habitWithoutDescription.name,
+        description: '',
+        completed: false,
+        created_at: '2024-01-01T00:00:00.000Z',
+        updated_at: '2024-01-01T00:00:00.000Z',
+      }
+
+      mockSupabaseResponse.data = mockCreatedHabit
+      mockSupabaseResponse.error = null
+
       const response = await request(app)
         .post('/api/habits')
         .send(habitWithoutDescription)
@@ -252,6 +215,28 @@ describe('API Endpoints', () => {
         habitWithoutDescription.name
       )
       expect(response.body.data).toHaveProperty('description', '')
+    })
+
+    it('should handle Supabase errors during creation', async () => {
+      const newHabit = {
+        name: 'Test Habit',
+        description: 'This is a test habit',
+      }
+
+      mockSupabaseResponse.data = null
+      mockSupabaseResponse.error = { message: 'Unique constraint violation' }
+
+      const response = await request(app)
+        .post('/api/habits')
+        .send(newHabit)
+        .set('Content-Type', 'application/json')
+
+      expect(response.status).toBe(500)
+      expect(response.body).toHaveProperty('error', 'Failed to create habit')
+      expect(response.body).toHaveProperty(
+        'details',
+        'Unique constraint violation'
+      )
     })
   })
 
