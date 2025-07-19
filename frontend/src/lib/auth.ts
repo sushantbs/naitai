@@ -137,7 +137,7 @@ export const authApi = {
   // Update user profile
   updateProfile: async (updates: {
     email?: string
-    data?: any
+    data?: Record<string, unknown>
   }): Promise<void> => {
     const { error } = await supabase.auth.updateUser(updates)
 

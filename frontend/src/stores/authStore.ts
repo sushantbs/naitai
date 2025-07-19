@@ -25,6 +25,7 @@ interface AuthActions {
 
 type AuthStore = AuthState & AuthActions
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const useAuthStore = create<AuthStore>((set, _get) => ({
   // State
   user: null,

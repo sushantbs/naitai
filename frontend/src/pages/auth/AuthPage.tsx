@@ -5,6 +5,12 @@ import { LoginForm } from '../../components/auth/LoginForm'
 import { SignupForm } from '../../components/auth/SignupForm'
 import { useAuthStore } from '../../stores/authStore'
 
+interface LocationState {
+  from?: {
+    pathname: string
+  }
+}
+
 type AuthMode = 'login' | 'signup'
 
 interface AuthPageProps {
@@ -22,7 +28,8 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   // Redirect authenticated users
   useEffect(() => {
     if (initialized && user) {
-      const from = (location.state as any)?.from?.pathname || '/habits'
+      const from =
+        (location.state as LocationState)?.from?.pathname || '/habits'
       navigate(from, { replace: true })
     }
   }, [user, initialized, navigate, location.state])

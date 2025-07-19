@@ -4,6 +4,23 @@ import '@testing-library/jest-dom'
 import { HabitList } from '../HabitList'
 import { api, type Habit } from '@/lib/api'
 
+interface MockMotionProps {
+  children: React.ReactNode
+  layout?: unknown
+  variants?: unknown
+  initial?: unknown
+  animate?: unknown
+  exit?: unknown
+  transition?: unknown
+  whileHover?: unknown
+  whileTap?: unknown
+  [key: string]: unknown
+}
+
+interface MockAnimatePresenceProps {
+  children: React.ReactNode
+}
+
 // Mock the API
 vi.mock('@/lib/api', () => ({
   api: {
@@ -17,22 +34,21 @@ vi.mock('@/lib/api', () => ({
 // Mock framer-motion to avoid animation issues in tests
 vi.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, layout, ...props }: any) => {
+    div: ({ children, ...props }: MockMotionProps) => {
       // Filter out motion-specific props that shouldn't be passed to DOM
-      const {
-        variants,
-        initial,
-        animate,
-        exit,
-        transition,
-        whileHover,
-        whileTap,
-        ...domProps
-      } = props
+      const domProps = { ...props }
+      delete domProps.layout
+      delete domProps.variants
+      delete domProps.initial
+      delete domProps.animate
+      delete domProps.exit
+      delete domProps.transition
+      delete domProps.whileHover
+      delete domProps.whileTap
       return <div {...domProps}>{children}</div>
     },
   },
-  AnimatePresence: ({ children }: any) => <>{children}</>,
+  AnimatePresence: ({ children }: MockAnimatePresenceProps) => <>{children}</>,
 }))
 
 const mockHabits: Habit[] = [
