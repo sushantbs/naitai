@@ -38,11 +38,25 @@
     "clean:backend": "cd backend && rm -rf dist node_modules",
     "install:all": "npm run install:frontend && npm run install:backend",
     "install:frontend": "cd frontend && npm install",
-    "install:backend": "cd backend && npm install"
+    "install:backend": "cd backend && npm install",
+    "pre-commit": "lint-staged && npm run type-check",
+    "prepare": "husky"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.1.2"
+  },
+  "lint-staged": {
+    "frontend/src/**/*.{ts,tsx}": [
+      "cd frontend && npx prettier --write",
+      "cd frontend && npx eslint --fix --no-warn-ignored"
+    ],
+    "backend/src/**/*.{ts,js}": [
+      "cd backend && npx prettier --write",
+      "cd backend && npx eslint --fix"
+    ]
   },
   "engines": {
     "node": ">=18.0.0",

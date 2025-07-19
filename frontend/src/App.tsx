@@ -29,31 +29,31 @@ function App() {
               <Route path="/auth/login" element={<LoginPage />} />
               <Route path="/auth/signup" element={<SignupPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
-              
+
               {/* Protected routes */}
-              <Route 
-                path="/" 
+              <Route
+                path="/"
                 element={
                   <ProtectedRoute>
                     <HabitsPage />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/habits" 
+              <Route
+                path="/habits"
                 element={
                   <ProtectedRoute>
                     <HabitsPage />
                   </ProtectedRoute>
-                } 
+                }
               />
-              <Route 
-                path="/profile" 
+              <Route
+                path="/profile"
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
                   </ProtectedRoute>
-                } 
+                }
               />
             </Routes>
           </motion.div>

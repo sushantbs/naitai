@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 interface AuthenticatedRequest extends Request {
   user?: {
     id: string
-    email: string
+    email?: string
     [key: string]: any
   }
 }
@@ -62,7 +62,7 @@ export const authenticateUser = async (
 // Optional authentication middleware (doesn't fail if no token)
 export const optionalAuth = async (
   req: AuthenticatedRequest,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {

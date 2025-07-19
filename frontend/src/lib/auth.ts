@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabase'
-import type { AuthResponse, User, Session } from '@supabase/supabase-js'
+import type { User, Session } from '@supabase/supabase-js'
 
 export interface AuthApiResponse {
   data: {

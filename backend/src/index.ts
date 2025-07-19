@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@supabase/supabase-js'
 import { authenticateUser, AuthenticatedRequest } from './middleware/auth'
 
 // Load environment variables
@@ -27,10 +27,10 @@ interface ApiResponse<T> {
   message?: string
 }
 
-interface CreateHabitRequest {
-  name: string
-  description?: string
-}
+// interface CreateHabitRequest {
+//   name: string
+//   description?: string
+// }
 
 interface HealthResponse {
   status: string
@@ -69,10 +69,11 @@ if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
   process.exit(1)
 }
 
-const supabase: SupabaseClient = createClient(
-  supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseKey || 'placeholder-key'
-)
+// Note: We create user-specific Supabase clients in the route handlers
+// const supabase: SupabaseClient = createClient(
+//   supabaseUrl || 'https://placeholder.supabase.co',
+//   supabaseKey || 'placeholder-key'
+// )
 
 // Routes
 
