@@ -2,6 +2,7 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { authenticateUser, AuthenticatedRequest } from './middleware/auth'
 
 // Load environment variables
 dotenv.config()
@@ -12,6 +13,7 @@ interface Habit {
   name: string
   description: string
   completed: boolean
+  user_id: string
   created_at?: string
   updated_at?: string
   createdAt?: string
@@ -40,6 +42,18 @@ interface HealthResponse {
 const PORT: number = parseInt(process.env.PORT || '3002', 10)
 const supabaseUrl: string | undefined = process.env.SUPABASE_URL
 const supabaseKey: string | undefined = process.env.SUPABASE_KEY
+const supabaseAnonKey: string | undefined = process.env.SUPABASE_ANON_KEY
+
+// Helper function to create user-specific Supabase client
+const createUserSupabaseClient = (userToken: string) => {
+  return createClient(supabaseUrl!, supabaseAnonKey!, {
+    global: {
+      headers: {
+        Authorization: `Bearer ${userToken}`,
+      },
+    },
+  })
+}
 
 const app = express()
 
@@ -48,9 +62,9 @@ app.use(cors())
 app.use(express.json())
 
 // Initialize Supabase client
-if (!supabaseUrl || !supabaseKey) {
+if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
   console.error(
-    '⚠️  SUPABASE_URL and SUPABASE_KEY must be set in environment variables'
+    '⚠️  SUPABASE_URL, SUPABASE_KEY, and SUPABASE_ANON_KEY must be set in environment variables'
   )
   process.exit(1)
 }
@@ -71,12 +85,39 @@ app.get('/api/health', (_req: Request, res: Response<HealthResponse>) => {
   })
 })
 
-// GET /api/habits - Fetch all habits
+// GET /api/habits - Fetch user's habits
 app.get(
   '/api/habits',
-  async (_req: Request, res: Response<ApiResponse<Habit[]>>): Promise<void> => {
+  authenticateUser,
+  async (
+    req: AuthenticatedRequest,
+    res: Response<ApiResponse<Habit[]>>
+  ): Promise<void> => {
     try {
-      const { data, error } = await supabase
+      const userId = req.user?.id
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'User not authenticated',
+        })
+        return
+      }
+
+      // Get the user's JWT token from the authorization header
+      const authHeader = req.headers.authorization
+      const token = authHeader?.substring(7) // Remove 'Bearer ' prefix
+
+      if (!token) {
+        res.status(401).json({
+          error: 'Authentication token required',
+        })
+        return
+      }
+
+      // Create a user-specific Supabase client with their JWT token
+      const userSupabase = createUserSupabaseClient(token)
+
+      const { data, error } = await userSupabase
         .from('habits')
         .select('*')
         .order('created_at', { ascending: false })
@@ -106,12 +147,21 @@ app.get(
 // POST /api/habits - Create a new habit
 app.post(
   '/api/habits',
+  authenticateUser,
   async (
-    req: Request<{}, ApiResponse<Habit>, CreateHabitRequest>,
+    req: AuthenticatedRequest,
     res: Response<ApiResponse<Habit>>
   ): Promise<void> => {
     try {
       const { name, description } = req.body
+      const userId = req.user?.id
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'User not authenticated',
+        })
+        return
+      }
 
       if (!name) {
         res.status(400).json({
@@ -120,13 +170,28 @@ app.post(
         return
       }
 
-      const { data, error } = await supabase
+      // Get the user's JWT token from the authorization header
+      const authHeader = req.headers.authorization
+      const token = authHeader?.substring(7) // Remove 'Bearer ' prefix
+
+      if (!token) {
+        res.status(401).json({
+          error: 'Authentication token required',
+        })
+        return
+      }
+
+      // Create a user-specific Supabase client with their JWT token
+      const userSupabase = createUserSupabaseClient(token)
+
+      const { data, error } = await userSupabase
         .from('habits')
         .insert([
           {
             name,
             description: description || '',
             completed: false,
+            user_id: userId,
           },
         ])
         .select()
@@ -179,9 +244,11 @@ app.listen(PORT, () => {
   console.log(`   GET  http://localhost:${PORT}/api/habits`)
   console.log(`   POST http://localhost:${PORT}/api/habits`)
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
     console.log(`\n⚠️  Configure Supabase to enable full functionality:`)
-    console.log(`   Add SUPABASE_URL and SUPABASE_KEY to your .env file`)
+    console.log(
+      `   Add SUPABASE_URL, SUPABASE_KEY, and SUPABASE_ANON_KEY to your .env file`
+    )
   }
 })
 

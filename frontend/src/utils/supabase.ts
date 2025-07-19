@@ -11,11 +11,38 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
 // Types for Supabase
 export type Database = {
-  // Add your database types here
   public: {
     Tables: {
-      // Example table structure
-      users: {
+      habits: {
+        Row: {
+          id: string
+          name: string
+          description: string
+          completed: boolean
+          user_id: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string
+          completed?: boolean
+          user_id: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string
+          completed?: boolean
+          user_id?: string
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      profiles: {
         Row: {
           id: string
           email: string
@@ -23,7 +50,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          id?: string
+          id: string
           email: string
           created_at?: string
           updated_at?: string

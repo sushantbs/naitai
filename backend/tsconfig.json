@@ -33,6 +33,7 @@
   "exclude": ["node_modules", "dist", "test", "**/*.js"],
   "ts-node": {
     "esm": true,
-    "experimentalSpecifierResolution": "node"
+    "experimentalSpecifierResolution": "node",
+    "files": true
   }
 }
