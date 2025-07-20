@@ -15,20 +15,41 @@ const mockSupabaseResponse = {
   error: null as any,
 }
 
-// Mock Supabase client with a simple structure
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: vi.fn(() => ({
-    from: vi.fn(() => ({
+// Mock the user-specific Supabase client creation
+const mockUserSupabaseClient = {
+  from: vi.fn(() => ({
+    select: vi.fn(() => ({
+      order: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
+    })),
+    insert: vi.fn(() => ({
       select: vi.fn(() => ({
-        order: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
-      })),
-      insert: vi.fn(() => ({
-        select: vi.fn(() => ({
-          single: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
-        })),
+        single: vi.fn(() => Promise.resolve(mockSupabaseResponse)),
       })),
     })),
   })),
+}
+
+// Mock Supabase client with a simple structure
+vi.mock('@supabase/supabase-js', () => ({
+  createClient: vi.fn(() => mockUserSupabaseClient),
+}))
+
+// Mock the authentication middleware
+vi.mock('../src/middleware/auth', () => ({
+  authenticateUser: vi.fn((req: any, res: any, next: any) => {
+    // Mock authenticated user
+    req.user = {
+      id: 'test-user-id',
+      email: 'test@example.com',
+    }
+    // Mock authorization header for user-specific client creation
+    req.headers = {
+      ...req.headers,
+      authorization: 'Bearer mock-jwt-token',
+    }
+    next()
+  }),
+  AuthenticatedRequest: {} as any,
 }))
 
 // Import app after all mocks are set up
@@ -62,14 +83,15 @@ describe('API Endpoints', () => {
     })
   })
 
-  describe('GET /api/habits', () => {
-    it('should return 200 OK with habits data', async () => {
+  describe('GET /api/habits (authenticated)', () => {
+    it('should return 200 OK with habits data when authenticated', async () => {
       const mockHabits = [
         {
           id: '1',
           name: 'Test Habit',
           description: 'Test Description',
           completed: false,
+          user_id: 'test-user-id',
           created_at: '2024-01-01T00:00:00.000Z',
           updated_at: '2024-01-01T00:00:00.000Z',
         },
@@ -79,7 +101,9 @@ describe('API Endpoints', () => {
       mockSupabaseResponse.data = mockHabits
       mockSupabaseResponse.error = null
 
-      const response = await request(app).get('/api/habits')
+      const response = await request(app)
+        .get('/api/habits')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(200)
       expect(response.body).toHaveProperty('data')
@@ -93,6 +117,7 @@ describe('API Endpoints', () => {
         name: 'Daily Exercise',
         description: 'Go for a 30-minute walk',
         completed: false,
+        user_id: 'test-user-id',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       }
@@ -100,7 +125,9 @@ describe('API Endpoints', () => {
       mockSupabaseResponse.data = [mockHabit]
       mockSupabaseResponse.error = null
 
-      const response = await request(app).get('/api/habits')
+      const response = await request(app)
+        .get('/api/habits')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(200)
       expect(response.body.data).toHaveLength(1)
@@ -110,6 +137,7 @@ describe('API Endpoints', () => {
       expect(habit).toHaveProperty('name')
       expect(habit).toHaveProperty('description')
       expect(habit).toHaveProperty('completed')
+      expect(habit).toHaveProperty('user_id')
       expect(habit).toHaveProperty('created_at')
       expect(habit).toHaveProperty('updated_at')
     })
@@ -118,7 +146,9 @@ describe('API Endpoints', () => {
       mockSupabaseResponse.data = null
       mockSupabaseResponse.error = { message: 'Database connection failed' }
 
-      const response = await request(app).get('/api/habits')
+      const response = await request(app)
+        .get('/api/habits')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(500)
       expect(response.body).toHaveProperty('error', 'Failed to fetch habits')
@@ -132,13 +162,15 @@ describe('API Endpoints', () => {
       mockSupabaseResponse.data = []
       mockSupabaseResponse.error = null
 
-      const response = await request(app).get('/api/habits')
+      const response = await request(app)
+        .get('/api/habits')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.headers['content-type']).toMatch(/application\/json/)
     })
   })
 
-  describe('POST /api/habits', () => {
+  describe('POST /api/habits (authenticated)', () => {
     it('should create a new habit with valid data', async () => {
       const newHabit = {
         name: 'Test Habit',
@@ -150,6 +182,7 @@ describe('API Endpoints', () => {
         name: newHabit.name,
         description: newHabit.description,
         completed: false,
+        user_id: 'test-user-id',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       }
@@ -161,6 +194,7 @@ describe('API Endpoints', () => {
         .post('/api/habits')
         .send(newHabit)
         .set('Content-Type', 'application/json')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(201)
       expect(response.body).toHaveProperty('data')
@@ -171,6 +205,7 @@ describe('API Endpoints', () => {
         newHabit.description
       )
       expect(response.body.data).toHaveProperty('completed', false)
+      expect(response.body.data).toHaveProperty('user_id', 'test-user-id')
     })
 
     it('should return 400 when name is missing', async () => {
@@ -182,6 +217,7 @@ describe('API Endpoints', () => {
         .post('/api/habits')
         .send(invalidHabit)
         .set('Content-Type', 'application/json')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(400)
       expect(response.body).toHaveProperty('error', 'Habit name is required')
@@ -197,6 +233,7 @@ describe('API Endpoints', () => {
         name: habitWithoutDescription.name,
         description: '',
         completed: false,
+        user_id: 'test-user-id',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
       }
@@ -208,6 +245,7 @@ describe('API Endpoints', () => {
         .post('/api/habits')
         .send(habitWithoutDescription)
         .set('Content-Type', 'application/json')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(201)
       expect(response.body.data).toHaveProperty(
@@ -215,6 +253,7 @@ describe('API Endpoints', () => {
         habitWithoutDescription.name
       )
       expect(response.body.data).toHaveProperty('description', '')
+      expect(response.body.data).toHaveProperty('user_id', 'test-user-id')
     })
 
     it('should handle Supabase errors during creation', async () => {
@@ -230,6 +269,7 @@ describe('API Endpoints', () => {
         .post('/api/habits')
         .send(newHabit)
         .set('Content-Type', 'application/json')
+        .set('Authorization', 'Bearer mock-jwt-token')
 
       expect(response.status).toBe(500)
       expect(response.body).toHaveProperty('error', 'Failed to create habit')
