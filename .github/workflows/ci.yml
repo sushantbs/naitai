@@ -120,6 +120,7 @@ jobs:
           PORT: 3003
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           NODE_ENV: test
 
       - name: Start server (health check)
