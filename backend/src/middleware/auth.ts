@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express'
 import { createClient } from '@supabase/supabase-js'
+import dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config()
 
 // Extend Request interface to include user
 interface AuthenticatedRequest extends Request {

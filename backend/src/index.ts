@@ -2,7 +2,7 @@ import express, { Request, Response, NextFunction } from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import { createClient } from '@supabase/supabase-js'
-import { authenticateUser, AuthenticatedRequest } from './middleware/auth'
+import { authenticateUser, AuthenticatedRequest } from './middleware/auth.js'
 
 // Load environment variables
 dotenv.config()
