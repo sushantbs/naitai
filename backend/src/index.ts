@@ -57,8 +57,20 @@ const createUserSupabaseClient = (userToken: string) => {
 
 const app = express()
 
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:3000', // Alternative frontend port
+    'http://127.0.0.1:3000',
+    'https://naitai-frontend.vercel.app/',
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+}
+
 // Middleware
-app.use(cors())
+app.use(cors(corsOptions))
 app.use(express.json())
 
 // Initialize Supabase client
@@ -245,6 +257,8 @@ app.listen(PORT, () => {
   console.log(`   GET  http://localhost:${PORT}/api/health`)
   console.log(`   GET  http://localhost:${PORT}/api/habits`)
   console.log(`   POST http://localhost:${PORT}/api/habits`)
+  console.log(`\n🌐 CORS enabled for origins:`)
+  corsOptions.origin.forEach(origin => console.log(`   ${origin}`))
 
   if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
     console.log(`\n⚠️  Configure Supabase to enable full functionality:`)
@@ -252,6 +266,11 @@ app.listen(PORT, () => {
       `   Add SUPABASE_URL, SUPABASE_KEY, and SUPABASE_ANON_KEY to your .env file`
     )
   }
+
+  console.log(`\n💡 Frontend should connect to: http://localhost:${PORT}`)
+  console.log(
+    `   Set VITE_API_URL=http://localhost:${PORT} in your frontend .env`
+  )
 })
 
 export default app
