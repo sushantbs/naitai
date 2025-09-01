@@ -1,3 +1,5 @@
+import { supabase } from '../utils/supabase'
+
 // API base URL from environment variables
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -12,6 +14,14 @@ export class ApiError extends Error {
   }
 }
 
+// Get auth token from Supabase
+async function getAuthToken(): Promise<string | null> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  return session?.access_token || null
+}
+
 // Generic fetch wrapper with error handling
 async function apiRequest<T>(
   endpoint: string,
@@ -19,9 +29,13 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
 
+  // Get auth token for authenticated requests
+  const token = await getAuthToken()
+
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
@@ -34,7 +48,9 @@ async function apiRequest<T>(
       const errorData = await response.json().catch(() => ({}))
       throw new ApiError(
         response.status,
-        errorData.message || `HTTP ${response.status}: ${response.statusText}`
+        errorData.message ||
+          errorData.error ||
+          `HTTP ${response.status}: ${response.statusText}`
       )
     }
 

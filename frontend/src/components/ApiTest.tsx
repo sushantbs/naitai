@@ -2,13 +2,19 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { api } from '@/lib/api'
+import { api, type Habit } from '@/lib/api'
+
+type ApiResponse =
+  | { status: string; timestamp: string; service?: string } // Health check response
+  | { data: Habit[] } // Habits response
+  | { success: boolean } // Delete response
+  | { data: Habit } // Single habit response
 
 export function ApiTest() {
   const [status, setStatus] = useState<
     'idle' | 'loading' | 'success' | 'error'
   >('idle')
-  const [apiResponse, setApiResponse] = useState<any>(null)
+  const [apiResponse, setApiResponse] = useState<ApiResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   const testApiConnection = async () => {

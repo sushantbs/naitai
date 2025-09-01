@@ -101,7 +101,7 @@ export default function HomePage() {
               className="flex justify-center gap-4 mb-12"
             >
               <Button size="lg" className="group" asChild>
-                <Link to="/habits">
+                <Link to="/">
                   <Target className="mr-2 h-4 w-4" />
                   Start Tracking Habits
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
