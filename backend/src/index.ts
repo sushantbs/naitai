@@ -60,13 +60,21 @@ const app = express()
 // CORS configuration
 const corsOptions = {
   origin: [
-    'http://localhost:3000', // Alternative frontend port
-    'http://127.0.0.1:3000',
-    'https://naitai-frontend.vercel.app/',
+    'http://localhost:3000', // Frontend configured port (vite.config.ts)
+    'http://127.0.0.1:3000', // Alternative localhost notation
+    'http://localhost:5173', // Vite dev server default port
+    'http://127.0.0.1:5173', // Alternative localhost notation for Vite
+    'https://naitai-frontend.vercel.app', // Production frontend (removed trailing slash)
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'Origin',
+    'X-Requested-With',
+  ],
 }
 
 // Middleware
@@ -75,10 +83,38 @@ app.use(express.json())
 
 // Initialize Supabase client
 if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
+  console.error('\n❌ Missing required Supabase environment variables:')
+  if (!supabaseUrl) console.error('   - SUPABASE_URL is not set')
+  if (!supabaseKey) console.error('   - SUPABASE_KEY is not set')
+  if (!supabaseAnonKey) console.error('   - SUPABASE_ANON_KEY is not set')
+
+  console.error('\n🔧 To fix this:')
   console.error(
-    '⚠️  SUPABASE_URL, SUPABASE_KEY, and SUPABASE_ANON_KEY must be set in environment variables'
+    '   1. For local development: Create a .env file in the backend directory'
   )
-  process.exit(1)
+  console.error(
+    '   2. For Vercel: Add environment variables in your Vercel project settings'
+  )
+  console.error(
+    '   3. For GitHub Actions: Add secrets to your repository settings'
+  )
+  console.error('\n📋 Required environment variables:')
+  console.error('   SUPABASE_URL=https://your-project.supabase.co')
+  console.error('   SUPABASE_KEY=your-service-role-key')
+  console.error('   SUPABASE_ANON_KEY=your-anon-key')
+
+  // In production environments, we want to fail fast
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '\n🚨 Cannot start in production without Supabase configuration'
+    )
+    process.exit(1)
+  }
+
+  // In development, we'll warn but continue (for testing purposes)
+  console.warn(
+    '\n⚠️  Starting in development mode without Supabase (some features will not work)'
+  )
 }
 
 // Note: We create user-specific Supabase clients in the route handlers
@@ -88,6 +124,21 @@ if (!supabaseUrl || !supabaseKey || !supabaseAnonKey) {
 // )
 
 // Routes
+
+// Handle preflight OPTIONS requests for all routes
+app.options('*', (req: Request, res: Response) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*')
+  res.header(
+    'Access-Control-Allow-Methods',
+    'GET, POST, PUT, DELETE, PATCH, OPTIONS'
+  )
+  res.header(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, Accept, Origin, X-Requested-With'
+  )
+  res.header('Access-Control-Allow-Credentials', 'true')
+  res.sendStatus(200)
+})
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response<HealthResponse>) => {
