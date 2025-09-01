@@ -1,4 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Mock environment variables
+vi.mock('import.meta', () => ({
+  env: {
+    VITE_SUPABASE_URL: 'https://test.supabase.co',
+    VITE_SUPABASE_ANON_KEY: 'test-anon-key',
+  },
+}))
+
+// Mock Supabase client before any other imports
+vi.mock('../../utils/supabase', () => ({
+  supabase: {
+    auth: {
+      signUp: vi.fn(),
+      signInWithPassword: vi.fn(),
+      signOut: vi.fn(),
+      getSession: vi.fn(),
+      resend: vi.fn(),
+      onAuthStateChange: vi.fn(),
+    },
+  },
+}))
+
 import { useAuthStore } from '../authStore'
 import { authApi, AuthApiResponse } from '../../lib/auth'
 import { Session, User } from '@supabase/supabase-js'
