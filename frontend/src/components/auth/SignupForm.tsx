@@ -13,6 +13,7 @@ import {
 } from '../ui/card'
 import { useAuthStore } from '../../stores/authStore'
 import { AuthError } from '../../lib/auth'
+import EmailVerificationPrompt from './EmailVerificationPrompt'
 
 interface SignupFormData {
   email: string
@@ -31,7 +32,13 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
   const [isLoading, setIsLoading] = useState(false)
   const [success, setSuccess] = useState<string | null>(null)
 
-  const { signUp, signInWithGoogle, signInWithFacebook } = useAuthStore()
+  const {
+    signUp,
+    signInWithGoogle,
+    signInWithFacebook,
+    emailVerificationRequired,
+    pendingVerificationEmail,
+  } = useAuthStore()
 
   const {
     register,
@@ -49,9 +56,8 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
 
     try {
       await signUp(data.email, data.password)
-      setSuccess(
-        'Account created successfully! Please check your email to verify your account.'
-      )
+      // Success message will be handled by the email verification prompt
+      // if verification is required, or by the auth state change if not
     } catch (err) {
       if (err instanceof AuthError) {
         setError(err.message)
@@ -87,6 +93,16 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onToggleMode }) => {
         setError('Failed to sign up with Facebook. Please try again.')
       }
     }
+  }
+
+  // Show email verification prompt if verification is required
+  if (emailVerificationRequired && pendingVerificationEmail) {
+    return (
+      <EmailVerificationPrompt
+        email={pendingVerificationEmail}
+        onBackToLogin={onToggleMode}
+      />
+    )
   }
 
   return (

@@ -1,5 +1,5 @@
 import { supabase } from '../utils/supabase'
-import type { User, Session } from '@supabase/supabase-js'
+import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js'
 
 export interface AuthApiResponse {
   data: {
@@ -146,9 +146,21 @@ export const authApi = {
     }
   },
 
+  // Resend verification email
+  resendVerificationEmail: async (email: string): Promise<void> => {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+    })
+
+    if (error) {
+      throw new AuthError(error.message)
+    }
+  },
+
   // Listen to auth state changes
   onAuthStateChange: (
-    callback: (event: string, session: Session | null) => void
+    callback: (event: AuthChangeEvent, session: Session | null) => void
   ) => {
     return supabase.auth.onAuthStateChange(callback)
   },

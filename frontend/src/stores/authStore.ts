@@ -7,6 +7,8 @@ interface AuthState {
   session: Session | null
   loading: boolean
   initialized: boolean
+  emailVerificationRequired: boolean
+  pendingVerificationEmail: string | null
 }
 
 interface AuthActions {
@@ -19,19 +21,23 @@ interface AuthActions {
   setSession: (session: Session | null) => void
   setLoading: (loading: boolean) => void
   setInitialized: (initialized: boolean) => void
+  setEmailVerificationRequired: (required: boolean) => void
+  setPendingVerificationEmail: (email: string | null) => void
+  resendVerificationEmail: (email: string) => Promise<void>
   resetPassword: (email: string) => Promise<void>
   updatePassword: (password: string) => Promise<void>
 }
 
 type AuthStore = AuthState & AuthActions
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export const useAuthStore = create<AuthStore>((set, _get) => ({
+export const useAuthStore = create<AuthStore>(set => ({
   // State
   user: null,
   session: null,
   loading: true,
   initialized: false,
+  emailVerificationRequired: false,
+  pendingVerificationEmail: null,
 
   // Actions
   signIn: async (email: string, password: string) => {
@@ -53,11 +59,27 @@ export const useAuthStore = create<AuthStore>((set, _get) => ({
     set({ loading: true })
     try {
       const { data } = await authApi.signUp(email, password)
-      set({
-        user: data.user,
-        session: data.session,
-        loading: false,
-      })
+
+      // Check if email verification is required
+      if (!data.session) {
+        // User created but not confirmed - email verification required
+        set({
+          user: null,
+          session: null,
+          emailVerificationRequired: true,
+          pendingVerificationEmail: email,
+          loading: false,
+        })
+      } else {
+        // User created and confirmed (auto-confirm enabled)
+        set({
+          user: data.user,
+          session: data.session,
+          emailVerificationRequired: false,
+          pendingVerificationEmail: null,
+          loading: false,
+        })
+      }
     } catch (error) {
       set({ loading: false })
       throw error
@@ -91,6 +113,8 @@ export const useAuthStore = create<AuthStore>((set, _get) => ({
       set({
         user: null,
         session: null,
+        emailVerificationRequired: false,
+        pendingVerificationEmail: null,
         loading: false,
       })
     } catch (error) {
@@ -107,9 +131,17 @@ export const useAuthStore = create<AuthStore>((set, _get) => ({
     await authApi.updatePassword(password)
   },
 
+  resendVerificationEmail: async (email: string) => {
+    await authApi.resendVerificationEmail(email)
+  },
+
   // Setters
   setUser: user => set({ user }),
   setSession: session => set({ session }),
   setLoading: loading => set({ loading }),
   setInitialized: initialized => set({ initialized }),
+  setEmailVerificationRequired: emailVerificationRequired =>
+    set({ emailVerificationRequired }),
+  setPendingVerificationEmail: pendingVerificationEmail =>
+    set({ pendingVerificationEmail }),
 }))
